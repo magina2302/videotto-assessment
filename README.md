@@ -82,10 +82,10 @@ Please spend no more than **2-3 hours**. We value a working solution over a perf
 ## What I found
 
 ### Bug 1: Dead-zone condition was ineffective
-The tracker moved the crop whenever there was any displacement (`abs(dx) > 0`, `abs(dy) > 0`), effectively disabling the dead-zone and causing constant micro-adjustments.
+Crop position changes frequently even during small face movements. But crop should remain stable unless face exits dead zone. This is because movement condition uses `abs(dx) > 0` instead of dead-zone threshold. Dead-zone behavior is effectively disabled, causing unnecessary movement.
 
 ### Bug 2: Scene cuts were not applied as hard transitions
-Scene boundaries and speaker switches were detected but still passed through the smoothing logic, resulting in delayed, unnatural camera motion instead of immediate cuts.
+Scene cuts are detected but crop transitions remain smooth. Scene cuts are detected but crop transitions remain smooth. This is because snap condition only logs frame but does not override smoothing logic. This violates expected behavior of hard cuts.
 
 ---
 
@@ -143,5 +143,7 @@ Implemented a run-length encoding based debouncer to remove short-lived speaker 
 
 - The crop remains vertically fixed in the provided examples because the portrait crop height matches the input frame height, effectively constraining vertical movement.
 - Debouncing significantly reduces false-positive speaker switches, which in turn improves the stability of the downstream tracking and reduces unnecessary snap events.
+- Empirically, debouncing reduced the number of scene/speaker-triggered snaps in clip_b (from multiple rapid switches down to a few stable transitions), improving temporal consistency.
+- Overall, the combination of dead-zone correction and speaker debouncing significantly improves both spatial stability and temporal coherence of the camera motion.
 
 

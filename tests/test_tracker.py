@@ -37,7 +37,7 @@ class TestTrackFaceCropBasics:
     def test_deadzone_prevents_small_movement(self):
         """Small face motion inside the dead zone should not move the crop."""
         #test for bug_1
-        
+
         bboxes = [
             (300, 160, 340, 200),  # center = (320, 180)
             (302, 160, 342, 200),  # center = (322, 180)
@@ -87,3 +87,4 @@ class TestTrackFaceCropBasics:
         expected_x = min(max_cx, expected_x)
 
         assert compressed[1][0] == expected_x
+
