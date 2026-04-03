@@ -75,3 +75,73 @@ Please spend no more than **2-3 hours**. We value a working solution over a perf
 - **Debugging process**: How did you find and diagnose the bugs?
 - **Code quality**: Is your code clean, well-tested, and consistent with the existing style?
 - **Communication**: Did you document your findings and reasoning?
+
+
+# NOTES
+
+## What I found
+
+### Bug 1: Dead-zone condition was ineffective
+The tracker moved the crop whenever there was any displacement (`abs(dx) > 0`, `abs(dy) > 0`), effectively disabling the dead-zone and causing constant micro-adjustments.
+
+### Bug 2: Scene cuts were not applied as hard transitions
+Scene boundaries and speaker switches were detected but still passed through the smoothing logic, resulting in delayed, unnatural camera motion instead of immediate cuts.
+
+---
+
+## What I fixed
+
+### Fix 1: Correct dead-zone behavior
+Replaced the movement condition to compare against `dz_half_w` and `dz_half_h`, ensuring the crop only moves when the face exits the dead-zone.
+
+### Fix 2: Proper snap handling for scene changes
+Introduced an early return (`continue`) after snapping to the new face position, ensuring smoothing is skipped entirely on scene cuts and speaker switches.
+
+### Fix 3: Implemented `debounce_speaker_ids`
+Implemented a run-length encoding based debouncer to remove short-lived speaker flickers before tracking.
+
+---
+
+## Debouncer design decisions
+
+- **Stability defined by duration**: A speaker is considered stable only if their run length ≥ `min_hold_frames`, aligning with the temporal consistency requirement.
+- **Preference for temporal continuity**: Short runs are replaced using the nearest *previous stable* speaker when possible, preserving continuity in conversational flow.
+- **Fallback strategy**: If no prior stable run exists, the next stable run is used instead to handle early-frame flickers.
+- **Strict handling of `None`**: `None` segments are treated as “no detection” rather than noise and are left untouched to avoid introducing artificial speaker labels.
+
+---
+
+## Tests added
+
+### Tracker regression tests
+
+- `test_deadzone_prevents_small_movement`  
+  Verifies that small face motion inside the dead-zone does not trigger crop movement.
+
+- `test_scene_cut_snaps_immediately`  
+  Ensures scene boundaries result in an immediate crop jump without smoothing.
+
+---
+
+### Debouncer tests
+
+- `test_short_middle_run_replaced_by_previous_stable_run`  
+  Confirms that short flicker runs in the middle are replaced by a stable preceding speaker.
+
+- `test_short_first_run_replaced_by_next_stable_run`  
+  Verifies fallback to the next stable run when no prior stable run exists.
+
+- `test_none_segments_are_untouched`  
+  Ensures `None` segments are preserved exactly and not modified.
+
+- `test_stable_runs_remain_unchanged`  
+  Confirms that runs meeting the stability threshold are not altered.
+
+---
+
+## Additional observations
+
+- The crop remains vertically fixed in the provided examples because the portrait crop height matches the input frame height, effectively constraining vertical movement.
+- Debouncing significantly reduces false-positive speaker switches, which in turn improves the stability of the downstream tracking and reduces unnecessary snap events.
+
+
